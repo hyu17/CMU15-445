@@ -73,6 +73,63 @@ Page *BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) {
   // 2.     If R is dirty, write it back to the disk.
   // 3.     Delete R from the page table and insert P.
   // 4.     Update P's metadata, read in the page content from disk, and then return a pointer to P.
+  std::lock_guard<std::mutex> guard(latch_);
+
+  if (page_table_.find(page_id) != page_table_.end()) {
+    // P exists, pin it and return it.
+    frame_id_t frame_id = page_table_[page_id];
+    replacer_->Pin(frame_id);
+    
+    // The cursor of buffer pool is frame_id because all the pages in the buffer pool are called frame.
+    Page* reqpage = &pages_[frame_id];
+    ++reqpage->pin_count_;
+    
+    return reqpage;
+  } else {
+    // P does not exists, find a replacement page(R) from free list first.
+    if (!free_list_.empty()) {
+      // if free list is not empty, fetch a lead free page.
+      frame_id_t frame_id = free_list_.front();
+      free_list_.pop_front();
+
+      // add <page_id, frame_id> into pagetable.
+      page_table_[page_id] = frame_id;
+
+      // pin it and return it.
+      replacer_->Pin(frame_id);
+
+      Page* reqpage = &pages_[frame_id];
+      ++reqpage->pin_count_;
+
+      return reqpage;
+    } else {
+      // TODO: replace a page, can I use LRUReplacer?
+      frame_id_t repframe = -1;
+      if (replacer_->Victim(&repframe)) {
+        // use LRUReplacer::Victim
+
+        // TODO: check this frame is dirty or not.
+        // If it is dirty, flush to disk.
+        Page* oldpage = &pages_[repframe];
+        if (oldpage->IsDirty()) {
+          if (!FlushPgImp(oldpage->GetPageId()))
+            return nullptr; // If flush errors.
+        }
+
+        // Rehash pagetable.
+        page_table_[page_id] = repframe;
+        
+        Page* reqpage = &pages_[repframe];
+        ++reqpage->pin_count_;
+
+        return reqpage;
+      }
+
+
+    }
+
+  }
+  // If no page is availiable in the free list and all the other pages are currently pinned.
   return nullptr;
 }
 
