@@ -93,7 +93,6 @@ Page *BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) {
         disk_manager_->WritePage(reppage->GetPageId(), reppage->GetData());
       
       page_table_.erase(reppage->GetPageId());
-      reppage->ResetMemory();
       disk_manager_->ReadPage(*page_id, reppage->data_);
       reppage->page_id_ = *page_id;
       reppage->pin_count_ = 1; 
@@ -138,7 +137,6 @@ Page *BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) {
       page_table_[page_id] = frame_id;
 
       Page* reqpage = &pages_[frame_id];
-      reqpage->ResetMemory();
       disk_manager_->ReadPage(page_id, reqpage->GetData());
       reqpage->page_id_ = page_id;
       reqpage->pin_count_ = 1;
@@ -166,7 +164,6 @@ Page *BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) {
         page_table_[page_id] = repframe_id;
         
         // Update P's metadata and read in the page content from disk. 
-        reppage->ResetMemory();
         disk_manager_->ReadPage(page_id, reppage->GetData());
         reppage->page_id_ = page_id;
         reppage->pin_count_ = 1;
@@ -186,6 +183,26 @@ bool BufferPoolManagerInstance::DeletePgImp(page_id_t page_id) {
   // 1.   If P does not exist, return true.
   // 2.   If P exists, but has a non-zero pin-count, return false. Someone is using the page.
   // 3.   Otherwise, P can be deleted. Remove P from the page table, reset its metadata and return it to the free list.
+  DeallocatePage(page_id);
+
+  if (page_table_.find(page_id) == page_table_.end()) {
+    return true;
+  } else {
+    frame_id_t frame_id = page_table_[page_id];
+    Page* page = &pages_[frame_id];
+    if (page->pin_count_ > 0)
+      return false;
+    
+    page_table_.erase(page_id);
+    page->ResetMemory();
+    page->is_dirty_ = false;
+    page->page_id_ = INVALID_PAGE_ID;
+    page->pin_count_ = 0;
+
+    free_list_.push_back(frame_id);
+
+    return true;
+  }
   return false;
 }
 
