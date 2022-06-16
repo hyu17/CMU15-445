@@ -96,6 +96,7 @@ Page *BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) {
 
     return page;
   } else {
+    // TODO: check
     frame_id_t frame_id = -1;
     if (replacer_->Victim(&frame_id)) {
       Page* reppage = &pages_[frame_id];
@@ -203,14 +204,16 @@ bool BufferPoolManagerInstance::DeletePgImp(page_id_t page_id) {
   } else {
     frame_id_t frame_id = page_table_[page_id];
     Page* page = &pages_[frame_id];
+    if (!page)
+      return true;
     if (page->pin_count_ > 0)
       return false;
     
     page_table_.erase(page_id);
     page->ResetMemory();
-    page->is_dirty_ = false;
     page->page_id_ = INVALID_PAGE_ID;
     page->pin_count_ = 0;
+    page->is_dirty_ = false;
 
     free_list_.push_back(frame_id);
 
