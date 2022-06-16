@@ -144,7 +144,22 @@ bool BufferPoolManagerInstance::DeletePgImp(page_id_t page_id) {
   return false;
 }
 
-bool BufferPoolManagerInstance::UnpinPgImp(page_id_t page_id, bool is_dirty) { return false; }
+bool BufferPoolManagerInstance::UnpinPgImp(page_id_t page_id, bool is_dirty) { 
+  std::lock_guard<std::mutex> guard(latch_);
+
+  frame_id_t frame_id = page_table_[page_id];
+  Page* unpin_page = &pages_[frame_id];
+  // Pin count is <= 0 before this call, return false.
+  if (unpin_page->pin_count_ <= 0)
+    return false;
+
+  replacer_->Unpin(frame_id);
+
+  if (is_dirty)
+    unpin_page->is_dirty_ = true;
+    
+  return true; 
+}
 
 page_id_t BufferPoolManagerInstance::AllocatePage() {
   const page_id_t next_page_id = next_page_id_;
