@@ -78,11 +78,12 @@ Page *BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) {
   if (page_table_.find(page_id) != page_table_.end()) {
     // P exists, pin it and return it.
     frame_id_t frame_id = page_table_[page_id];
-    replacer_->Pin(frame_id);
     
     // The cursor of buffer pool is frame_id because all the pages in the buffer pool are called frame.
     Page* reqpage = &pages_[frame_id];
     ++reqpage->pin_count_;
+
+    replacer_->Pin(frame_id);
     
     return reqpage;
   } else {
@@ -95,24 +96,24 @@ Page *BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) {
       // add <page_id, frame_id> into pagetable.
       page_table_[page_id] = frame_id;
 
-      // pin it and return it.
-      replacer_->Pin(frame_id);
-
       Page* reqpage = &pages_[frame_id];
       reqpage->ResetMemory();
-      disk_manager_->ReadPage(page_id, reqpage->data_);
+      disk_manager_->ReadPage(page_id, reqpage->GetData());
       reqpage->page_id_ = page_id;
       reqpage->pin_count_ = 1;
       reqpage->is_dirty_ = false;
 
+      // pin it and return it.
+      replacer_->Pin(frame_id);
+
       return reqpage;
     } else {
       // TODO: replace a page, can I use LRUReplacer?
-      frame_id_t repframe = -1;
-      if (replacer_->Victim(&repframe)) { // use LRUReplacer::Victim to find a replacement page
+      frame_id_t repframe_id = -1;
+      if (replacer_->Victim(&repframe_id)) { // use LRUReplacer::Victim to find a replacement page
         // TODO: check this frame is dirty or not.
         // If it is dirty, flush to disk.
-        Page* reppage = &pages_[repframe];
+        Page* reppage = &pages_[repframe_id];
         page_id_t reppage_id = reppage->GetPageId();
         if (reppage->IsDirty()) {
           disk_manager_->WritePage(reppage_id, reppage->GetData());
@@ -121,11 +122,11 @@ Page *BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) {
         // Rehash pagetable.
         // Delete R from the pagetable and insert P.
         page_table_.erase(reppage_id);
-        page_table_[page_id] = repframe;
+        page_table_[page_id] = repframe_id;
         
         // Update P's metadata and read in the page content from disk. 
         reppage->ResetMemory();
-        disk_manager_->ReadPage(page_id, reppage->data_);
+        disk_manager_->ReadPage(page_id, reppage->GetData());
         reppage->page_id_ = page_id;
         reppage->pin_count_ = 1;
         reppage->is_dirty_ = false;
