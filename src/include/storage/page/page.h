@@ -17,6 +17,7 @@
 
 #include "common/config.h"
 #include "common/rwlatch.h"
+#include "common/logger.h"
 
 namespace bustub {
 

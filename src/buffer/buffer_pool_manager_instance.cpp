@@ -105,29 +105,31 @@ Page *BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) {
     } else {
       // TODO: replace a page, can I use LRUReplacer?
       frame_id_t repframe = -1;
-      if (replacer_->Victim(&repframe)) {
-        // use LRUReplacer::Victim
-
+      if (replacer_->Victim(&repframe)) { // use LRUReplacer::Victim to find a replacement page
         // TODO: check this frame is dirty or not.
         // If it is dirty, flush to disk.
-        Page* oldpage = &pages_[repframe];
-        if (oldpage->IsDirty()) {
-          if (!FlushPgImp(oldpage->GetPageId()))
-            return nullptr; // If flush errors.
+        Page* reppage = &pages_[repframe];
+        page_id_t reppage_id = reppage->GetPageId();
+        if (reppage->IsDirty()) {
+          disk_manager_->WritePage(reppage_id, reppage->GetData());
         }
 
         // Rehash pagetable.
+        // Delete R from the pagetable and insert P.
+        page_table_.erase(reppage_id);
         page_table_[page_id] = repframe;
+        reppage->ResetMemory();
         
-        Page* reqpage = &pages_[repframe];
-        ++reqpage->pin_count_;
+        // Update P's metadata and read in the page content from disk. 
+        if (reppage) {
+          reppage->page_id_ = page_id;
+          reppage->pin_count_ = 1;
+          reppage->is_dirty_ = false;
 
-        return reqpage;
+          disk_manager_->ReadPage(page_id, reppage->data_);
+        }
       }
-
-
     }
-
   }
   // If no page is availiable in the free list and all the other pages are currently pinned.
   return nullptr;
