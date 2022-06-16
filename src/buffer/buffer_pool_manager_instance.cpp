@@ -52,6 +52,7 @@ bool BufferPoolManagerInstance::FlushPgImp(page_id_t page_id) {
   std::lock_guard<std::mutex> guard(latch_);
 
   frame_id_t frame_id = page_table_[page_id];
+  page_table_.erase(page_id);
   Page* page = &pages_[frame_id];
   disk_manager_->WritePage(page_id, page->data_);
 
@@ -60,6 +61,16 @@ bool BufferPoolManagerInstance::FlushPgImp(page_id_t page_id) {
 
 void BufferPoolManagerInstance::FlushAllPgsImp() {
   // You can do it!
+  std::lock_guard<std::mutex> guard(latch_);
+
+  for (auto iter : page_table_) {
+    page_id_t page_id = iter.first;
+    frame_id_t frame_id = iter.second;
+
+    page_table_.erase(page_id);
+    Page* page = &pages_[frame_id];
+    disk_manager_->WritePage(page_id, page->data_);
+  }
 }
 
 Page *BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) {
@@ -183,6 +194,8 @@ bool BufferPoolManagerInstance::DeletePgImp(page_id_t page_id) {
   // 1.   If P does not exist, return true.
   // 2.   If P exists, but has a non-zero pin-count, return false. Someone is using the page.
   // 3.   Otherwise, P can be deleted. Remove P from the page table, reset its metadata and return it to the free list.
+  std::lock_guard<std::mutex> guard(latch_);
+
   DeallocatePage(page_id);
 
   if (page_table_.find(page_id) == page_table_.end()) {
