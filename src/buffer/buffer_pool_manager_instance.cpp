@@ -91,7 +91,7 @@ Page *BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) {
       // if free list is not empty, fetch a lead free page.
       frame_id_t frame_id = free_list_.front();
       free_list_.pop_front();
-
+ 
       // add <page_id, frame_id> into pagetable.
       page_table_[page_id] = frame_id;
 
@@ -99,7 +99,10 @@ Page *BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) {
       replacer_->Pin(frame_id);
 
       Page* reqpage = &pages_[frame_id];
-      ++reqpage->pin_count_;
+      reqpage->ResetMemory();
+      reqpage->pin_count_ = 1;
+      disk_manager_->ReadPage(page_id, reqpage->data_);
+      reqpage->is_dirty_ = false;
 
       return reqpage;
     } else {

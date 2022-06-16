@@ -23,8 +23,8 @@ LRUReplacer::~LRUReplacer() = default;
 
 /**
  * Remove the object that was accessed least recently compared to all the other elements being tracked by the Replacer.
- * @param frame_id stores the object's contents.
- * @return true if lru list is not empty, else return false.
+ * @param frame_id stores the object's contents
+ * @return true if lru list is not empty, otherwise return false
  */
 bool LRUReplacer::Victim(frame_id_t *frame_id) {
   std::lock_guard<std::mutex> guard(latch_);
@@ -40,6 +40,7 @@ bool LRUReplacer::Victim(frame_id_t *frame_id) {
 /**
  * This method should be called after a page is pinned to a frame in the BufferPoolManager.
  * It should remove the frame containing the pinned page from the LRUReplacer.
+ * @param frame_id contain the pinned page
  */
 void LRUReplacer::Pin(frame_id_t frame_id) {
   std::lock_guard<std::mutex> guard(latch_);
