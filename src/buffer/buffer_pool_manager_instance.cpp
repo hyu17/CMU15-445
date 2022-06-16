@@ -100,8 +100,9 @@ Page *BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) {
 
       Page* reqpage = &pages_[frame_id];
       reqpage->ResetMemory();
-      reqpage->pin_count_ = 1;
       disk_manager_->ReadPage(page_id, reqpage->data_);
+      reqpage->page_id_ = page_id;
+      reqpage->pin_count_ = 1;
       reqpage->is_dirty_ = false;
 
       return reqpage;
@@ -121,16 +122,15 @@ Page *BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) {
         // Delete R from the pagetable and insert P.
         page_table_.erase(reppage_id);
         page_table_[page_id] = repframe;
-        reppage->ResetMemory();
         
         // Update P's metadata and read in the page content from disk. 
-        if (reppage) {
-          reppage->page_id_ = page_id;
-          reppage->pin_count_ = 1;
-          reppage->is_dirty_ = false;
-
-          disk_manager_->ReadPage(page_id, reppage->data_);
-        }
+        reppage->ResetMemory();
+        disk_manager_->ReadPage(page_id, reppage->data_);
+        reppage->page_id_ = page_id;
+        reppage->pin_count_ = 1;
+        reppage->is_dirty_ = false;
+        
+        return reppage;
       }
     }
   }
