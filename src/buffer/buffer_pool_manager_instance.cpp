@@ -133,9 +133,9 @@ Page *BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) {
     
     // The cursor of buffer pool is frame_id because all the pages in the buffer pool are called frame.
     Page* request_page = &pages_[frame_id];
-    if (!request_page) {
-      LOG_INFO("this page should exist!\n");
-    } 
+    // if (!request_page) {
+    //   LOG_INFO("this page should exist!\n");
+    // } 
     ++request_page->pin_count_;
     
     return request_page;
