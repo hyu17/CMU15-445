@@ -99,18 +99,18 @@ Page *BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) {
     // TODO: check
     frame_id_t frame_id = -1;
     if (replacer_->Victim(&frame_id)) {
-      Page* reppage = &pages_[frame_id];
+      Page* replace_page = &pages_[frame_id];
       
-      if (reppage->IsDirty())
-        disk_manager_->WritePage(reppage->GetPageId(), reppage->GetData());
+      if (replace_page->IsDirty())
+        disk_manager_->WritePage(replace_page->GetPageId(), replace_page->GetData());
       
-      page_table_.erase(reppage->GetPageId());
-      disk_manager_->ReadPage(*page_id, reppage->data_);
-      reppage->page_id_ = *page_id;
-      reppage->pin_count_ = 1; 
-      reppage->is_dirty_ = false;
+      page_table_.erase(replace_page->GetPageId());
+      disk_manager_->ReadPage(*page_id, replace_page->data_);
+      replace_page->page_id_ = *page_id;
+      replace_page->pin_count_ = 1; 
+      replace_page->is_dirty_ = false;
 
-      return reppage;
+      return replace_page;
     }
   }
 
@@ -132,14 +132,15 @@ Page *BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) {
     frame_id_t frame_id = page_table_[page_id];
     
     // The cursor of buffer pool is frame_id because all the pages in the buffer pool are called frame.
-    Page* reqpage = &pages_[frame_id];
-    ++reqpage->pin_count_;
-
-    replacer_->Pin(frame_id);
+    Page* request_page = &pages_[frame_id];
+    if (!request_page) {
+      LOG_INFO("this page should exist!\n");
+    } 
+    ++request_page->pin_count_;
     
-    return reqpage;
+    return request_page;
   } else {
-    // P does not exists, find a replacement page(R) from free list first.
+    // If P does not exists, find a replacement page(R) from free list first.
     if (!free_list_.empty()) {
       // if free list is not empty, fetch a lead free page.
       frame_id_t frame_id = free_list_.front();
@@ -148,40 +149,37 @@ Page *BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) {
       // add <page_id, frame_id> into pagetable.
       page_table_[page_id] = frame_id;
 
-      Page* reqpage = &pages_[frame_id];
-      disk_manager_->ReadPage(page_id, reqpage->GetData());
-      reqpage->page_id_ = page_id;
-      reqpage->pin_count_ = 1;
-      reqpage->is_dirty_ = false;
+      Page* request_page = &pages_[frame_id];
+      disk_manager_->ReadPage(page_id, request_page->data_);
+      request_page->page_id_ = page_id;
+      request_page->pin_count_ = 1;
+      request_page->is_dirty_ = false;
 
-      // pin it and return it.
-      replacer_->Pin(frame_id);
-
-      return reqpage;
+      return request_page;
     } else {
-      // TODO: replace a page, can I use LRUReplacer?
-      frame_id_t repframe_id = -1;
-      if (replacer_->Victim(&repframe_id)) { // use LRUReplacer::Victim to find a replacement page
+      // TODO: evict a page, use LRU policy.
+      frame_id_t replace_frame_id = -1;
+      if (replacer_->Victim(&replace_frame_id)) { // use LRUReplacer::Victim to find a replacement page
         // TODO: check this frame is dirty or not.
         // If it is dirty, flush to disk.
-        Page* reppage = &pages_[repframe_id];
-        page_id_t reppage_id = reppage->GetPageId();
-        if (reppage->IsDirty()) {
-          disk_manager_->WritePage(reppage_id, reppage->GetData());
+        Page* replace_page = &pages_[replace_frame_id];
+        page_id_t replace_page_id = replace_page->GetPageId();
+        if (replace_page->IsDirty()) {
+          disk_manager_->WritePage(replace_page_id, replace_page->data_);
         }
 
-        // Rehash pagetable.
+        // Re-hash pagetable.
         // Delete R from the pagetable and insert P.
-        page_table_.erase(reppage_id);
-        page_table_[page_id] = repframe_id;
+        page_table_.erase(replace_page_id);
+        page_table_[page_id] = replace_frame_id;
         
         // Update P's metadata and read in the page content from disk. 
-        disk_manager_->ReadPage(page_id, reppage->GetData());
-        reppage->page_id_ = page_id;
-        reppage->pin_count_ = 1;
-        reppage->is_dirty_ = false;
+        disk_manager_->ReadPage(page_id, replace_page->data_);
+        replace_page->page_id_ = page_id;
+        replace_page->pin_count_ = 1;
+        replace_page->is_dirty_ = false;
         
-        return reppage;
+        return replace_page;
       }
     }
   }
