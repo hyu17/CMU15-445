@@ -15,6 +15,7 @@
 #include <random>
 #include <string>
 #include "buffer/buffer_pool_manager.h"
+#include "common/logger.h"
 #include "gtest/gtest.h"
 
 namespace bustub {

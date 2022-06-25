@@ -28,8 +28,9 @@ LRUReplacer::~LRUReplacer() = default;
  */
 bool LRUReplacer::Victim(frame_id_t *frame_id) {
   std::lock_guard<std::mutex> guard(latch_);
-  if (lru_.empty())
+  if (lru_.empty()) {
     return false;
+  }
 
   *frame_id = lru_.back();
   lru_map_.erase(*frame_id);
@@ -45,11 +46,13 @@ bool LRUReplacer::Victim(frame_id_t *frame_id) {
 void LRUReplacer::Pin(frame_id_t frame_id) {
   std::lock_guard<std::mutex> guard(latch_);
 
-  if (lru_.empty())
+  if (lru_.empty()) {
     return;
+  }
   // lru list does not have this frame.
-  if (lru_map_.find(frame_id) == lru_map_.end())
+  if (lru_map_.find(frame_id) == lru_map_.end()) {
     return;
+  }
 
   std::list<frame_id_t>::iterator iter = lru_map_[frame_id];
   lru_.erase(iter);
@@ -64,11 +67,13 @@ void LRUReplacer::Unpin(frame_id_t frame_id) {
   std::lock_guard<std::mutex> guard(latch_);
 
   // lru list is full.
-  if (lru_.size() >= max_page_nums_)
+  if (lru_.size() >= max_page_nums_) {
     return;
+  }
   // lru list have this frame.
-  if (lru_map_.find(frame_id) != lru_map_.end())
+  if (lru_map_.find(frame_id) != lru_map_.end()) {
     return;
+  }
 
   lru_.push_front(frame_id);
   lru_map_[frame_id] = lru_.begin();
@@ -77,7 +82,7 @@ void LRUReplacer::Unpin(frame_id_t frame_id) {
 /**
  * This method returns the number of frames that are currently in the LRUReplacer.
  */
-size_t LRUReplacer::Size() { 
+size_t LRUReplacer::Size() {
   std::lock_guard<std::mutex> guard(latch_);
   return lru_.size();
 }
