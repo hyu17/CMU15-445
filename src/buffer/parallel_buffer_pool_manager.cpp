@@ -32,6 +32,8 @@ ParallelBufferPoolManager::ParallelBufferPoolManager(size_t num_instances, size_
 
 // Update constructor to destruct all BufferPoolManagerInstances and deallocate any associated memory
 ParallelBufferPoolManager::~ParallelBufferPoolManager() {
+  std::lock_guard<std::mutex> guard(latch_);
+  
   for (size_t i = 0; i < num_instances_; ++i) {
     delete buffer_pool_managers_[i];
   }
@@ -39,7 +41,7 @@ ParallelBufferPoolManager::~ParallelBufferPoolManager() {
 
 size_t ParallelBufferPoolManager::GetPoolSize() {
   // Get size of all BufferPoolManagerInstances
-  return num_instances_ * pool_size_;
+  return pool_size_;
 }
 
 BufferPoolManager *ParallelBufferPoolManager::GetBufferPoolManager(page_id_t page_id) {
