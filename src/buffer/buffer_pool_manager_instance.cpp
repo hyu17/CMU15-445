@@ -181,9 +181,7 @@ bool BufferPoolManagerInstance::DeletePgImp(page_id_t page_id) {
 
   DeallocatePage(page_id);
 
-  if (page_table_.find(page_id) == page_table_.end()) {
-    return true;
-  } else {
+  if (page_table_.find(page_id) != page_table_.end()) {
     frame_id_t frame_id = page_table_[page_id];
     Page *page = &pages_[frame_id];
 
