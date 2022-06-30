@@ -198,7 +198,7 @@ bool BufferPoolManagerInstance::DeletePgImp(page_id_t page_id) {
   page->pin_count_ = 0;
   page->is_dirty_ = false;
   free_list_.push_back(frame_id);
-  // replacer_->Pin(frame_id);
+  replacer_->Pin(frame_id);
   return true;
 }
 
