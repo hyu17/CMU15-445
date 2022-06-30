@@ -59,12 +59,12 @@ bool BufferPoolManagerInstance::FlushPgImp(page_id_t page_id) {
   // Please not that we just wanna flush this page, not delete this page!
   frame_id_t frame_id = page_table_[page_id];
   Page *page = &pages_[frame_id];
-  disk_manager_->WritePage(page_id, page->GetData());
-  // Reset this page's dirty flag.
-  page->is_dirty_ = false;
+  if (page->IsDirty()) {
+    disk_manager_->WritePage(page_id, page->GetData());
+    // Reset this page's dirty flag.
+    page->is_dirty_ = false;
+  }
 
-  // replacer_->Pin(frame_id);
-  
   return true;
 }
 
@@ -77,10 +77,10 @@ void BufferPoolManagerInstance::FlushAllPgsImp() {
     frame_id_t frame_id = iter.second;
 
     Page *page = &pages_[frame_id];
-    disk_manager_->WritePage(page_id, page->GetData());
-    page->is_dirty_ = false;
-
-    // replacer_->Pin(frame_id);
+    if (page->IsDirty()) {
+      disk_manager_->WritePage(page_id, page->GetData());
+      page->is_dirty_ = false;
+    }
   }
 }
 
@@ -122,7 +122,7 @@ Page *BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) {
   // Add this page into the page_table.
   page_table_[new_page_id] = frame_id;
   // Remove this page from the LRUReplacer.
-  // replacer_->Pin(frame_id);
+  replacer_->Pin(frame_id);
   return page;
 }
 
@@ -200,6 +200,7 @@ bool BufferPoolManagerInstance::DeletePgImp(page_id_t page_id) {
   page->pin_count_ = 0;
   page->is_dirty_ = false;
   free_list_.push_back(frame_id);
+  replacer_->Pin(frame_id);
   return true;
 }
 
