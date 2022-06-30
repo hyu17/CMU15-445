@@ -63,7 +63,7 @@ bool BufferPoolManagerInstance::FlushPgImp(page_id_t page_id) {
   // Reset this page's dirty flag.
   page->is_dirty_ = false;
 
-  replacer_->Pin(frame_id);
+  // replacer_->Pin(frame_id);
   
   return true;
 }
@@ -80,7 +80,7 @@ void BufferPoolManagerInstance::FlushAllPgsImp() {
     disk_manager_->WritePage(page_id, page->GetData());
     page->is_dirty_ = false;
 
-    replacer_->Pin(frame_id);
+    // replacer_->Pin(frame_id);
   }
 }
 
