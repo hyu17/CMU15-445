@@ -122,7 +122,7 @@ Page *BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) {
   // Add this page into the page_table.
   page_table_[new_page_id] = frame_id;
   // Remove this page from the LRUReplacer.
-  replacer_->Pin(frame_id);
+  // replacer_->Pin(frame_id);
   return page;
 }
 
