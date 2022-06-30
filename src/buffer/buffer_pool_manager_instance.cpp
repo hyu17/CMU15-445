@@ -214,10 +214,8 @@ bool BufferPoolManagerInstance::UnpinPgImp(page_id_t page_id, bool is_dirty) {
   frame_id_t frame_id = page_table_[page_id];
   Page *unpin_page = &pages_[frame_id];
 
-  if (unpin_page->pin_count_ > 0) {
-    --unpin_page->pin_count_;
-  }
-  if (unpin_page->pin_count_ == 0) {
+  --unpin_page->pin_count_;
+  if (--unpin_page->pin_count_ == 0) {
     replacer_->Unpin(frame_id);
   }
 
