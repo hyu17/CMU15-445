@@ -48,12 +48,6 @@ BufferPoolManagerInstance::~BufferPoolManagerInstance() {
   delete replacer_;
 }
 
-/**
- * Flush this page to disk.
- * If this page is not dirty, it's not necessary to flush it.
- * But if it is dirty, flush it, reset it's dirty flag.
- * @param page_id, target page
-*/
 bool BufferPoolManagerInstance::FlushPgImp(page_id_t page_id) {
   // Make sure you call DiskManager::WritePage!
   std::lock_guard<std::mutex> guard(latch_);
@@ -65,19 +59,15 @@ bool BufferPoolManagerInstance::FlushPgImp(page_id_t page_id) {
   // Please not that we just wanna flush this page, not delete this page!
   frame_id_t frame_id = page_table_[page_id];
   Page *page = &pages_[frame_id];
-  if (page->IsDirty()) {
-    disk_manager_->WritePage(page_id, page->GetData());
-    // Reset this page's dirty flag.
-    page->is_dirty_ = false;
-  }
+  disk_manager_->WritePage(page_id, page->GetData());
+  // Reset this page's dirty flag.
+  page->is_dirty_ = false;
+
+  replacer_->Pin(frame_id);
   
   return true;
 }
 
-/**
- * Flush all the page into disk.
- * Just flush dirty pages.
-*/
 void BufferPoolManagerInstance::FlushAllPgsImp() {
   // You can do it!
   std::lock_guard<std::mutex> guard(latch_);
@@ -87,17 +77,13 @@ void BufferPoolManagerInstance::FlushAllPgsImp() {
     frame_id_t frame_id = iter.second;
 
     Page *page = &pages_[frame_id];
-    if (page->IsDirty()) {
-      disk_manager_->WritePage(page_id, page->data_);
-      page->is_dirty_ = false;
-    }
+    disk_manager_->WritePage(page_id, page->GetData());
+    page->is_dirty_ = false;
+
+    replacer_->Pin(frame_id);
   }
 }
 
-/**
- * Allocate a new page_id, create a new frame in the buffer pool.
- * @param [out] page_id the new page id 
-*/
 Page *BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) {
   // 0.   Make sure you call AllocatePage!
   // 1.   If all the pages in the buffer pool are pinned, return nullptr.
@@ -196,29 +182,25 @@ bool BufferPoolManagerInstance::DeletePgImp(page_id_t page_id) {
   // 3.   Otherwise, P can be deleted. Remove P from the page table, reset its metadata and return it to the free list.
   std::lock_guard<std::mutex> guard(latch_);
 
-  DeallocatePage(page_id);
-
-  if (page_table_.find(page_id) != page_table_.end()) {
-    frame_id_t frame_id = page_table_[page_id];
-    Page *page = &pages_[frame_id];
-
-    if (page->GetPinCount() > 0) {
-      return false;
-    }
-
-    replacer_->Pin(frame_id);
-
-    page_table_.erase(page_id);
-    page->ResetMemory();
-    page->page_id_ = INVALID_PAGE_ID;
-    page->pin_count_ = 0;
-    page->is_dirty_ = false;
-
-    free_list_.push_back(frame_id);
-
+  if (page_table_.find(page_id) == page_table_.end()) {
     return true;
   }
-  return false;
+
+  DeallocatePage(page_id);
+
+  frame_id_t frame_id = page_table_[page_id];
+  Page *page = &pages_[frame_id];
+  if (page->GetPinCount() > 0) {
+    return false;
+  }
+
+  page_table_.erase(page_id);
+  page->ResetMemory();
+  page->page_id_ = INVALID_PAGE_ID;
+  page->pin_count_ = 0;
+  page->is_dirty_ = false;
+  free_list_.push_back(frame_id);
+  return true;
 }
 
 bool BufferPoolManagerInstance::UnpinPgImp(page_id_t page_id, bool is_dirty) {
