@@ -48,6 +48,12 @@ BufferPoolManagerInstance::~BufferPoolManagerInstance() {
   delete replacer_;
 }
 
+/**
+ * Flush this page to disk.
+ * If this page is not dirty, it's not necessary to flush it.
+ * But if it is dirty, flush it, reset it's dirty flag.
+ * @param page_id, target page
+*/
 bool BufferPoolManagerInstance::FlushPgImp(page_id_t page_id) {
   // Make sure you call DiskManager::WritePage!
   std::lock_guard<std::mutex> guard(latch_);
@@ -68,6 +74,10 @@ bool BufferPoolManagerInstance::FlushPgImp(page_id_t page_id) {
   return true;
 }
 
+/**
+ * Flush all the page into disk.
+ * Just flush dirty pages.
+*/
 void BufferPoolManagerInstance::FlushAllPgsImp() {
   // You can do it!
   std::lock_guard<std::mutex> guard(latch_);
@@ -84,6 +94,10 @@ void BufferPoolManagerInstance::FlushAllPgsImp() {
   }
 }
 
+/**
+ * Allocate a new page_id, create a new frame in the buffer pool.
+ * @param [out] page_id the new page id 
+*/
 Page *BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) {
   // 0.   Make sure you call AllocatePage!
   // 1.   If all the pages in the buffer pool are pinned, return nullptr.
@@ -169,6 +183,7 @@ Page *BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) {
   disk_manager_->ReadPage(page_id, page->GetData());
   // Insert this page into the pagetable.
   page_table_[page_id] = frame_id;
+  replacer_->Pin(frame_id);
 
   return page;
 }
@@ -216,12 +231,12 @@ bool BufferPoolManagerInstance::UnpinPgImp(page_id_t page_id, bool is_dirty) {
   frame_id_t frame_id = page_table_[page_id];
   Page *unpin_page = &pages_[frame_id];
 
-  if (unpin_page->pin_count_ > 0) {
+  if (unpin_page->GetPinCount() > 0) {
     --unpin_page->pin_count_;
   } else {
     return false;
   }
-  if (unpin_page->pin_count_ == 0) {
+  if (unpin_page->GetPinCount() == 0) {
     replacer_->Unpin(frame_id);
   }
 
