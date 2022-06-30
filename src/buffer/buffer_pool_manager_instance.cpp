@@ -62,7 +62,6 @@ bool BufferPoolManagerInstance::FlushPgImp(page_id_t page_id) {
   if (page->IsDirty()) {
     disk_manager_->WritePage(page_id, page->GetData());
   }
-  replacer_->Unpin(frame_id);
 
   return true;
 }
@@ -80,7 +79,6 @@ void BufferPoolManagerInstance::FlushAllPgsImp() {
     if (page->IsDirty()) {
       disk_manager_->WritePage(page_id, page->data_);
     }
-    replacer_->Unpin(frame_id);
   }
 }
 
