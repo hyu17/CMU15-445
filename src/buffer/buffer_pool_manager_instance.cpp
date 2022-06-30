@@ -59,11 +59,9 @@ bool BufferPoolManagerInstance::FlushPgImp(page_id_t page_id) {
   // Please not that we just wanna flush this page, not delete this page!
   frame_id_t frame_id = page_table_[page_id];
   Page *page = &pages_[frame_id];
-  if (page->IsDirty()) {
-    disk_manager_->WritePage(page_id, page->GetData());
-    // Reset this page's dirty flag.
-    page->is_dirty_ = false;
-  }
+  disk_manager_->WritePage(page_id, page->GetData());
+  // Reset this page's dirty flag.
+  page->is_dirty_ = false;
 
   return true;
 }
@@ -77,10 +75,8 @@ void BufferPoolManagerInstance::FlushAllPgsImp() {
     frame_id_t frame_id = iter.second;
 
     Page *page = &pages_[frame_id];
-    if (page->IsDirty()) {
-      disk_manager_->WritePage(page_id, page->GetData());
-      page->is_dirty_ = false;
-    }
+    disk_manager_->WritePage(page_id, page->GetData());
+    page->is_dirty_ = false;
   }
 }
 
