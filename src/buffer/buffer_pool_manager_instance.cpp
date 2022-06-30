@@ -56,16 +56,15 @@ bool BufferPoolManagerInstance::FlushPgImp(page_id_t page_id) {
     return false;
   }
 
+  // Please not that we just wanna flush this page, not delete this page!
   frame_id_t frame_id = page_table_[page_id];
-  page_table_.erase(page_id);
   Page *page = &pages_[frame_id];
   if (page->IsDirty()) {
     disk_manager_->WritePage(page_id, page->GetData());
+    // Reset this page's dirty flag.
+    page->is_dirty_ = false;
   }
   
-  // Reset this page's dirty flag.
-  page->is_dirty_ = false;
-
   return true;
 }
 
@@ -77,13 +76,11 @@ void BufferPoolManagerInstance::FlushAllPgsImp() {
     page_id_t page_id = iter.first;
     frame_id_t frame_id = iter.second;
 
-    page_table_.erase(page_id);
     Page *page = &pages_[frame_id];
     if (page->IsDirty()) {
       disk_manager_->WritePage(page_id, page->data_);
+      page->is_dirty_ = false;
     }
-
-    page->is_dirty_ = false;
   }
 }
 
@@ -190,7 +187,7 @@ bool BufferPoolManagerInstance::DeletePgImp(page_id_t page_id) {
     frame_id_t frame_id = page_table_[page_id];
     Page *page = &pages_[frame_id];
 
-    if (page->pin_count_ > 0) {
+    if (page->GetPinCount() > 0) {
       return false;
     }
 
