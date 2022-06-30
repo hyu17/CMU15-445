@@ -62,6 +62,9 @@ bool BufferPoolManagerInstance::FlushPgImp(page_id_t page_id) {
   if (page->IsDirty()) {
     disk_manager_->WritePage(page_id, page->GetData());
   }
+  
+  // Reset this page's dirty flag.
+  page->is_dirty_ = false;
 
   return true;
 }
@@ -79,6 +82,8 @@ void BufferPoolManagerInstance::FlushAllPgsImp() {
     if (page->IsDirty()) {
       disk_manager_->WritePage(page_id, page->data_);
     }
+
+    page->is_dirty_ = false;
   }
 }
 
