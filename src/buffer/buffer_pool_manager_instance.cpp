@@ -107,18 +107,20 @@ Page *BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) {
     return nullptr;
   }
 
-  // Update this page's meta-data.
-  page->page_id_ = new_page_id;
-  page->is_dirty_ = false;
-  page->pin_count_ = 1;
-  page->ResetMemory();
+  if (page != nullptr) {
+    // Update this page's meta-data.
+    page->page_id_ = new_page_id;
+    page->is_dirty_ = false;
+    page->pin_count_ = 1;
+    page->ResetMemory();
 
-  // Set the page ID output parameter.
-  *page_id = new_page_id;
-  // Add this page into the page_table.
-  page_table_[new_page_id] = frame_id;
-  // Remove this page from the LRUReplacer.
-  replacer_->Pin(frame_id);
+    // Set the page ID output parameter.
+    *page_id = new_page_id;
+    // Add this page into the page_table.
+    page_table_[new_page_id] = frame_id;
+    // Remove this page from the LRUReplacer.
+    replacer_->Pin(frame_id);
+  }
   return page;
 }
 
@@ -196,7 +198,7 @@ bool BufferPoolManagerInstance::DeletePgImp(page_id_t page_id) {
   page->pin_count_ = 0;
   page->is_dirty_ = false;
   free_list_.push_back(frame_id);
-  replacer_->Pin(frame_id);
+  // replacer_->Pin(frame_id);
   return true;
 }
 
