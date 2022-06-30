@@ -88,7 +88,6 @@ Page *BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) {
   // 4.   Set the page ID output parameter. Return a pointer to P.
   std::lock_guard<std::mutex> guard(latch_);
 
-  page_id_t new_page_id = AllocatePage();
   frame_id_t frame_id = -1;
   Page *page = nullptr;
 
@@ -107,20 +106,19 @@ Page *BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) {
     return nullptr;
   }
 
-  if (page != nullptr) {
-    // Update this page's meta-data.
-    page->page_id_ = new_page_id;
-    page->is_dirty_ = false;
-    page->pin_count_ = 1;
-    page->ResetMemory();
+  // Update this page's meta-data.
+  page_id_t new_page_id = AllocatePage();
+  page->page_id_ = new_page_id;
+  page->is_dirty_ = false;
+  page->pin_count_ = 1;
+  page->ResetMemory();
+  // Set the page ID output parameter.
+  *page_id = new_page_id;
+  // Add this page into the page_table.
+  page_table_[new_page_id] = frame_id;
+  // Remove this page from the LRUReplacer.
+  replacer_->Pin(frame_id);
 
-    // Set the page ID output parameter.
-    *page_id = new_page_id;
-    // Add this page into the page_table.
-    page_table_[new_page_id] = frame_id;
-    // Remove this page from the LRUReplacer.
-    replacer_->Pin(frame_id);
-  }
   return page;
 }
 
