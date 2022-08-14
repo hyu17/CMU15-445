@@ -28,10 +28,15 @@ LRUReplacer::~LRUReplacer() = default;
  */
 bool LRUReplacer::Victim(frame_id_t *frame_id) {
   std::lock_guard<std::mutex> guard(latch_);
+
+  // There is no unused frame.
   if (lru_.empty()) {
     return false;
   }
 
+  // Fetch the Least Recently Used Page, 
+  // Buffer Poool Manager will evict it out of memory,
+  // we should remove it from LRUReplacer here.
   *frame_id = lru_.back();
   lru_map_.erase(*frame_id);
   lru_.pop_back();
@@ -49,11 +54,13 @@ void LRUReplacer::Pin(frame_id_t frame_id) {
   if (lru_.empty()) {
     return;
   }
-  // lru list does not have this frame.
+  
+  // If lru list does not have this frame.
   if (lru_map_.find(frame_id) == lru_map_.end()) {
     return;
   }
 
+  // If lru list has this frame, remove it from LRUReplacer.
   std::list<frame_id_t>::iterator iter = lru_map_[frame_id];
   lru_.erase(iter);
   lru_map_.erase(frame_id);
@@ -66,11 +73,12 @@ void LRUReplacer::Pin(frame_id_t frame_id) {
 void LRUReplacer::Unpin(frame_id_t frame_id) {
   std::lock_guard<std::mutex> guard(latch_);
 
-  // lru list is full.
+  // If lru list is full, return.
   if (lru_.size() >= max_page_nums_) {
     return;
   }
-  // lru list have this frame.
+
+  // If lru list has this frame, just return.
   if (lru_map_.find(frame_id) != lru_map_.end()) {
     return;
   }
