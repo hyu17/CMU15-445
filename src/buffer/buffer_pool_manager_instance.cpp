@@ -190,6 +190,10 @@ bool BufferPoolManagerInstance::DeletePgImp(page_id_t page_id) {
     return false;
   }
 
+  if (page->IsDirty()) {
+    disk_manager_->WritePage(page->GetPageId(), page->GetData());
+  }
+
   page_table_.erase(page_id);
   page->ResetMemory();
   page->page_id_ = INVALID_PAGE_ID;
