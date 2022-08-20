@@ -28,25 +28,50 @@ uint32_t HashTableDirectoryPage::GetGlobalDepth() { return global_depth_; }
 
 uint32_t HashTableDirectoryPage::GetGlobalDepthMask() { return 0; }
 
-void HashTableDirectoryPage::IncrGlobalDepth() {}
+// It only occurs when bucket overflows and the local depth 
+// is equal to global depth, the global depth and the local 
+// depth should be increased by 1, and assign appropriate pointers.
+void HashTableDirectoryPage::IncrGlobalDepth() 
+{
+  // Find the overflow bucket, increase it's local depth.
+  uint32_t curr_size = Size();
+  for (uint32_t directory_idx = 0; directory_idx < curr_size;
+      ++directory_idx)
+  {
+    if (GetLocalDepth(directory_idx) == GetGlobalDepth())
+    {
+      IncrLocalDepth(directory_idx);
+      break;
+    }
+  }
+ 
+  ++global_depth_;
+
+  // Double the number of directory and assign pointers.
+  for (uint32_t old_idx = 0, new_idx = curr_size;
+      old_idx < curr_size; ++old_idx, ++new_idx)
+  {
+    bucket_page_ids_[new_idx] = bucket_page_ids_[old_idx];
+  }
+}
 
 void HashTableDirectoryPage::DecrGlobalDepth() { global_depth_--; }
 
-page_id_t HashTableDirectoryPage::GetBucketPageId(uint32_t bucket_idx) { return 0; }
+page_id_t HashTableDirectoryPage::GetBucketPageId(uint32_t bucket_idx) { return bucket_page_ids_[bucket_idx]; }
 
-void HashTableDirectoryPage::SetBucketPageId(uint32_t bucket_idx, page_id_t bucket_page_id) {}
+void HashTableDirectoryPage::SetBucketPageId(uint32_t bucket_idx, page_id_t bucket_page_id) { bucket_page_ids_[bucket_idx] = bucket_page_id; }
 
-uint32_t HashTableDirectoryPage::Size() { return 0; }
+uint32_t HashTableDirectoryPage::Size() { return 2 << global_depth_; }
 
 bool HashTableDirectoryPage::CanShrink() { return false; }
 
 uint32_t HashTableDirectoryPage::GetLocalDepth(uint32_t bucket_idx) { return 0; }
 
-void HashTableDirectoryPage::SetLocalDepth(uint32_t bucket_idx, uint8_t local_depth) {}
+void HashTableDirectoryPage::SetLocalDepth(uint32_t bucket_idx, uint8_t local_depth) { local_depths_[bucket_idx] = local_depth; }
 
-void HashTableDirectoryPage::IncrLocalDepth(uint32_t bucket_idx) {}
+void HashTableDirectoryPage::IncrLocalDepth(uint32_t bucket_idx) { ++local_depths_[bucket_idx]; }
 
-void HashTableDirectoryPage::DecrLocalDepth(uint32_t bucket_idx) {}
+void HashTableDirectoryPage::DecrLocalDepth(uint32_t bucket_idx) { --local_depths_[bucket_idx]; }
 
 uint32_t HashTableDirectoryPage::GetLocalHighBit(uint32_t bucket_idx) { return 0; }
 
