@@ -26,7 +26,9 @@ void HashTableDirectoryPage::SetLSN(lsn_t lsn) { lsn_ = lsn; }
 
 uint32_t HashTableDirectoryPage::GetGlobalDepth() { return global_depth_; }
 
-uint32_t HashTableDirectoryPage::GetGlobalDepthMask() { return 0; }
+uint32_t HashTableGetLocalDepth(uint32_t bucket_idx) { return local_depths_[bucket_idx]; }
+
+uint32_t HashTableDirectoryPage::GetGlobalDepthMask() { return (1 << global_depth_) - 1; }
 
 // It only occurs when bucket overflows and the local depth 
 // is equal to global depth, the global depth and the local 

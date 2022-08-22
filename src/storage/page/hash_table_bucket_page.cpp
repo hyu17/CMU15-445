@@ -20,8 +20,26 @@
 namespace bustub {
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
-bool HASH_TABLE_BUCKET_TYPE::GetValue(KeyType key, KeyComparator cmp, std::vector<ValueType> *result) {
-  return false;
+bool HASH_TABLE_BUCKET_TYPE::GetValue(KeyType key, KeyComparator cmp, std::vector<ValueType> *result)
+{
+  if (IsEmpty())
+  {
+    return false;
+  }
+
+  for (uint32_t bucket_idx = 0; bucket_idx < BUCKET_ARRAY_SIZE;
+      ++bucket_idx)
+  {
+    if (!IsOccupied(bucket_idx))
+    {
+      break;
+    }
+    if (IsReadable(bucket_idx) && !cmp(key, KeyAt(bucket_idx)))
+    {
+      result->push_back(ValueAt(bucket_idx));
+    }
+  } 
+  return true;
 }
 
 // The hash table supports both unique and non-unique keys.
@@ -136,8 +154,18 @@ uint32_t HASH_TABLE_BUCKET_TYPE::NumReadable() {
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
-bool HASH_TABLE_BUCKET_TYPE::IsEmpty() {
-  return false;
+bool HASH_TABLE_BUCKET_TYPE::IsEmpty()
+{
+  for (uint32_t index = 0;
+       index < (BUCKET_ARRAY_SIZE - 1) / 8 + 1;
+       ++index) 
+  {
+    if (readable_[index] != '0')
+    {
+      return false;
+    }
+  }
+  return true;
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
